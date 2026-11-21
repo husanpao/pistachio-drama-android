@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.5 — 2026-11-21
+
+- 新增 GitHub Actions 自动构建；
+- 新增 GitHub Release 发布工作流；
+- 新增应用内检查更新，支持 Release / Tags 回退；
+- 「我的」增加手动检查更新入口。
+
 ## 0.5.4 — 2026-11-21
 
 - 播放协议迁移到 7.4.3.32 playback v5；

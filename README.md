@@ -7,7 +7,8 @@
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
 [![Java](https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk&logoColor=white)](https://openjdk.org)
 [![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)](https://developer.android.com/media/media3)
-[![版本](https://img.shields.io/badge/version-0.5.4-blue)](CHANGELOG.md)
+[![版本](https://img.shields.io/badge/version-0.5.5-blue)](CHANGELOG.md)
+[![Android CI](https://github.com/husanpao/pistachio-drama-android/actions/workflows/android.yml/badge.svg)](https://github.com/husanpao/pistachio-drama-android/actions/workflows/android.yml)
 
 ## 功能
 
@@ -17,6 +18,7 @@
 - 剧场筛选、排行榜、新剧、搜索
 - Media3 播放器：PiP、倍速、清晰度、选集、自动连播
 - 当前集缓存，顺序预缓存后 3 集
+- 应用内检查 GitHub Release 更新
 - 游客身份，无账号、金币、广告、推送和遥测
 
 ## 截图
@@ -64,6 +66,21 @@ adb shell am start -n com.hongguo.nativeapp/com.hongguo.core.SplashActivity
 adb uninstall com.hongguo.nativeapp
 adb install artifacts/app-release.apk
 ```
+
+## 自动构建与更新
+
+GitHub Actions 会在 push / PR 时构建 debug 与 unsigned release APK，并上传为构建产物。
+推送 `v*` 标签时，配置以下 Secrets 后会自动创建 GitHub Release：
+
+```text
+ANDROID_KEYSTORE_BASE64
+ANDROID_KEYSTORE_PASSWORD
+ANDROID_KEY_ALIAS
+ANDROID_KEY_PASSWORD
+```
+
+应用启动后会静默检查最新 Release（找不到时回退到 Tags），也可在「我的 → 检查更新」
+手动触发。发现新版本时打开 GitHub 更新页面。
 
 ## 免责声明
 

@@ -18,6 +18,7 @@ public final class AppPrefs {
     private static final String KEY_SPEED = "playback_speed";
     private static final String KEY_AUTO_PRELOAD = "auto_preload";
     private static final String KEY_FEED_SEEN = "feed_seen";
+    private static final String KEY_UPDATE_CHECK = "update_check";
 
     private AppPrefs() {
     }
@@ -112,6 +113,14 @@ public final class AppPrefs {
 
     public static void clearFeedSeen(Context context) {
         prefs(context).edit().remove(KEY_FEED_SEEN).apply();
+    }
+
+    public static long lastUpdateCheck(Context context) {
+        return prefs(context).getLong(KEY_UPDATE_CHECK, 0L);
+    }
+
+    public static void setLastUpdateCheck(Context context, long time) {
+        prefs(context).edit().putLong(KEY_UPDATE_CHECK, time).apply();
     }
 
     public static String qualityLabel(String quality) {

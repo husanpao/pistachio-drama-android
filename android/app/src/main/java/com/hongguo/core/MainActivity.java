@@ -37,6 +37,8 @@ public class MainActivity extends Activity implements HomeView.TabHost {
 
         setContentView(root);
         switchTab(0);
+        new android.os.Handler(getMainLooper()).postDelayed(
+                () -> UpdateChecker.check(this, false), 1800);
     }
 
     @Override
