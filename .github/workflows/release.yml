@@ -23,12 +23,10 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - uses: gradle/actions/setup-gradle@v4
-
       - name: Build release
         run: |
           chmod +x android/gradlew
-          ./android/gradlew -p android assembleRelease --no-daemon --stacktrace
+          ./android/gradlew -p android assembleRelease --no-daemon --refresh-dependencies --stacktrace
 
       - name: Sign release
         if: env.KEYSTORE_BASE64 != ''
