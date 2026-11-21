@@ -32,13 +32,13 @@ public final class UpdateChecker {
     private static final long AUTO_CHECK_INTERVAL_MS = 12L * 60 * 60 * 1000;
 
     private static final String[] MANIFEST_MIRRORS = {
-            "https://cdn.jsdelivr.net/gh/" + OWNER_REPO + "@main/update.json",
-            "https://fastly.jsdelivr.net/gh/" + OWNER_REPO + "@main/update.json",
-            "https://gcore.jsdelivr.net/gh/" + OWNER_REPO + "@main/update.json",
-            "https://raw.gitmirror.com/" + OWNER_REPO + "/main/update.json",
             "https://ghproxy.net/" + RAW_MANIFEST,
             "https://gh-proxy.com/" + RAW_MANIFEST,
             "https://ghfast.top/" + RAW_MANIFEST,
+            "https://raw.gitmirror.com/" + OWNER_REPO + "/main/update.json",
+            "https://cdn.jsdelivr.net/gh/" + OWNER_REPO + "@main/update.json",
+            "https://fastly.jsdelivr.net/gh/" + OWNER_REPO + "@main/update.json",
+            "https://gcore.jsdelivr.net/gh/" + OWNER_REPO + "@main/update.json",
             RAW_MANIFEST
     };
 
@@ -76,7 +76,7 @@ public final class UpdateChecker {
             // 1. Mirrored update.json: works when github.com is blocked.
             for (String url : MANIFEST_MIRRORS) {
                 try {
-                    Http.Reply reply = Http.get(url, headers);
+                    Http.Reply reply = Http.get(url, headers, 6000, 8000);
                     if (reply.status != 200 || reply.body.length == 0) continue;
                     JSONObject json = new JSONObject(reply.text());
                     String version = json.optString("version", "").trim();
@@ -130,10 +130,12 @@ public final class UpdateChecker {
         String apkName = json.optString("apk_name", "").trim();
         String apkPath = json.optString("apk_path", "").trim();
 
-        // Prefer a jsDelivr copy committed in the repository.
+        // Prefer a proxy for the repository copy. jsDelivr is a secondary
+        // mirror because it is not reachable on every mainland network.
         if (!apkPath.isEmpty()) {
-            return "https://cdn.jsdelivr.net/gh/" + OWNER_REPO
-                    + (tag.isEmpty() ? "@main" : "@" + tag) + "/" + apkPath;
+            String raw = "https://raw.githubusercontent.com/" + OWNER_REPO
+                    + "/main/" + apkPath;
+            return "https://ghproxy.net/" + raw;
         }
         if (!tag.isEmpty() && !apkName.isEmpty()) {
             String github = "https://github.com/" + OWNER_REPO

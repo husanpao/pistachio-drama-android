@@ -36,9 +36,16 @@ public final class Http {
     }
 
     public static Reply get(String url, Map<String, String> headers) throws Exception {
+        return get(url, headers, 15000, 30000);
+    }
+
+    public static Reply get(String url, Map<String, String> headers,
+                            int connectTimeoutMs, int readTimeoutMs) throws Exception {
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         connection.setRequestMethod("GET");
         apply(connection, headers);
+        connection.setConnectTimeout(connectTimeoutMs);
+        connection.setReadTimeout(readTimeoutMs);
         try {
             int status = connection.getResponseCode();
             InputStream input = status >= 400 ? connection.getErrorStream() : connection.getInputStream();
