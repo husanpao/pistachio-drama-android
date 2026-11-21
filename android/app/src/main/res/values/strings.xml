@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">开心果短剧</string>
+    <string name="brand_name">开心果</string>
+    <string name="brand_suffix">短剧</string>
+    <string name="search_hint">搜你想看的短剧</string>
+    <string name="tab_home">推荐</string>
+    <string name="tab_browse">找剧</string>
+    <string name="tab_rank">排行榜</string>
+    <string name="tab_new">新剧</string>
+    <string name="tab_mine">我的</string>
+    <string name="loading">加载中…</string>
+    <string name="empty_title">这里还什么都没有</string>
+    <string name="empty_hint">换个条件试试看</string>
+    <string name="error_title">网络开小差了</string>
+    <string name="retry">重试</string>
+    <string name="no_more">没有更多了</string>
+    <string name="play_now">立即播放</string>
+    <string name="continue_watch">继续观看</string>
+    <string name="favorite">收藏</string>
+    <string name="favorited">已收藏</string>
+</resources>

@@ -1,0 +1,27 @@
+# Build
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+*.iml
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# JVM test classes
+
+# Media / runtime
+*.enc.mp4
+*.dec.mp4
+*.play.mp4
+*.mp4
+artifacts/*.log
+
+# IDE / OS
+.idea/
+.DS_Store
+Thumbs.db
+

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Hongguo" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">@color/brand</item>
+        <item name="android:colorPrimaryDark">@color/surface</item>
+        <item name="android:colorAccent">@color/brand</item>
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:statusBarColor">@color/surface</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">@color/surface</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+    <style name="Theme.Hongguo.Player" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/player_bg</item>
+        <item name="android:statusBarColor">@color/player_bg</item>
+        <item name="android:navigationBarColor">@color/player_bg</item>
+        <item name="android:colorAccent">@color/brand</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+
+    <style name="Theme.Hongguo.Splash" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@drawable/splash_window</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">#2A0206</item>
+        <item name="android:navigationBarColor">#120003</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+
+    <style name="Theme.Hongguo.Sheet" parent="android:Theme.Material.Light.Dialog.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimAmount">0.45</item>
+    </style>
+</resources>
