@@ -3,6 +3,6 @@
   "tag": "",
   "apk_path": "artifacts/app-release.apk",
   "apk_name": "pistachio-drama-android-v0.5.6.apk",
-  "release_url": "https://github.com/husanpao/pistachio-drama-android/releases",
-  "notes": "Update check mirrors and playback fixes"
+  "release_url": "https://github.com/husanpao/pistachio-drama-android/releases/tag/v0.5.6",
+  "notes": "Release v0.5.6"
 }
