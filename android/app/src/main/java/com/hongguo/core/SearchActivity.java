@@ -59,7 +59,8 @@ public class SearchActivity extends Activity {
         back.setPadding(Theme.dp(this, 8), Theme.dp(this, 8),
                 Theme.dp(this, 8), Theme.dp(this, 8));
         back.addView(Ui.icon(this, R.drawable.ic_back, 22, Theme.TEXT));
-        back.setOnClickListener(v -> handleBack());
+        back.setContentDescription("返回");
+        back.setOnClickListener(v -> exitSearch());
         bar.addView(back);
 
         LinearLayout pill = Ui.row(this);
@@ -233,22 +234,21 @@ public class SearchActivity extends Activity {
         results.restart(offset -> api.search(query, offset, searchId, passback));
     }
 
-    private void handleBack() {
-        if (resultHost.getVisibility() == View.VISIBLE) {
-            resultHost.setVisibility(View.GONE);
-            suggestions.setVisibility(View.VISIBLE);
-            return;
-        }
+    private void exitSearch() {
         InputMethodManager keyboard = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
-        if (keyboard != null && keyboard.isActive()) {
+        if (keyboard != null) {
             keyboard.hideSoftInputFromWindow(input.getWindowToken(), 0);
-            return;
         }
         finish();
     }
 
     @Override
     public void onBackPressed() {
-        handleBack();
+        if (resultHost.getVisibility() == View.VISIBLE) {
+            resultHost.setVisibility(View.GONE);
+            suggestions.setVisibility(View.VISIBLE);
+            return;
+        }
+        exitSearch();
     }
 }
