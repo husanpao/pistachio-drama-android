@@ -7,7 +7,7 @@
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
 [![Java](https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk&logoColor=white)](https://openjdk.org)
 [![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)](https://developer.android.com/media/media3)
-[![版本](https://img.shields.io/badge/version-0.5.5-blue)](CHANGELOG.md)
+[![版本](https://img.shields.io/badge/version-0.5.6-blue)](CHANGELOG.md)
 [![Android CI](https://github.com/husanpao/pistachio-drama-android/actions/workflows/android.yml/badge.svg)](https://github.com/husanpao/pistachio-drama-android/actions/workflows/android.yml)
 
 ## 功能
@@ -70,7 +70,11 @@ adb install artifacts/app-release.apk
 ## 自动构建与更新
 
 GitHub Actions 会在 push / PR 时构建 debug 与 unsigned release APK，并上传为构建产物。
-推送 `v*` 标签时，配置以下 Secrets 后会自动创建 GitHub Release：
+每次 push 到 `main` 还会检查 `build.gradle.kts` 中的版本号：如果该版本还没有 GitHub
+Release，会自动构建签名 APK、创建 tag / Release，并更新 `update.json`。
+
+版本号仍由 `android/app/build.gradle.kts` 的 `versionName` / `versionCode` 决定。
+创建自动 Release 前需配置以下 Secrets：
 
 ```text
 ANDROID_KEYSTORE_BASE64
@@ -79,8 +83,8 @@ ANDROID_KEY_ALIAS
 ANDROID_KEY_PASSWORD
 ```
 
-应用启动后会静默检查最新 Release（找不到时回退到 Tags），也可在「我的 → 检查更新」
-手动触发。发现新版本时打开 GitHub 更新页面。
+应用启动后会静默检查最新版本（找不到时回退到 Tags），也可在「我的 → 检查更新」
+手动触发。检查优先使用 `update.json` 的国内可访问镜像，发现新版本时打开镜像下载页。
 
 ## 免责声明
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.6 — 2026-11-21
+
+- 更新检查改为镜像优先：jsDelivr、ghproxy、gh-proxy、ghfast、raw.gitmirror；
+- 增加 `update.json` 更新清单；
+- GitHub Release / Tags 作为回退来源；
+- CI 在版本号变化时自动创建 tag、签名 Release 并更新清单。
+
 ## 0.5.5 — 2026-11-21
 
 - 新增 GitHub Actions 自动构建；

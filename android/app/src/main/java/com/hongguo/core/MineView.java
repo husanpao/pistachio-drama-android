@@ -138,7 +138,7 @@ public final class MineView extends FrameLayout {
         menuCard.addView(menuRow(R.drawable.ic_download, "检查更新", "",
                 () -> UpdateChecker.check(context, true)));
         menuCard.addView(menuDivider());
-        menuCard.addView(menuRow(R.drawable.ic_star, "关于开心果短剧", "v0.5.5",
+        menuCard.addView(menuRow(R.drawable.ic_star, "关于开心果短剧", "v0.5.6",
                 this::showAbout));
 
         TextView footer = Ui.text(context, "仅供个人协议研究与学习使用", 10, Theme.TEXT_TERTIARY);
@@ -439,7 +439,7 @@ public final class MineView extends FrameLayout {
     private void showAbout() {
         new AlertDialog.Builder(context)
                 .setTitle("免责声明")
-                .setMessage("版本 v0.5.5\n\n"
+                .setMessage("版本 v0.5.6\n\n"
                         + "本应用仅用于个人 Android 开发学习、技术研究与界面设计练习，"
                         + "不提供任何影视内容的存储、分发、售卖或商业服务。\n\n"
                         + "所有剧集、封面、演员肖像、商标及相关内容的版权归原权利人所有。\n\n"
