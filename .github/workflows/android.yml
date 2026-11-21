@@ -27,7 +27,7 @@ jobs:
       - name: Build debug and release
         run: |
           chmod +x android/gradlew
-          ./gradlew -p android assembleDebug assembleRelease --no-daemon --stacktrace
+          ./android/gradlew -p android assembleDebug assembleRelease --no-daemon --stacktrace
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
