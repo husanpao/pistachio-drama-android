@@ -7,7 +7,7 @@
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
 [![Java](https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk&logoColor=white)](https://openjdk.org)
 [![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)](https://developer.android.com/media/media3)
-[![版本](https://img.shields.io/badge/version-0.5.7-blue)](CHANGELOG.md)
+[![版本](https://img.shields.io/badge/version-0.5.8-blue)](CHANGELOG.md)
 [![Android CI](https://github.com/husanpao/pistachio-drama-android/actions/workflows/android.yml/badge.svg)](https://github.com/husanpao/pistachio-drama-android/actions/workflows/android.yml)
 
 ## 功能

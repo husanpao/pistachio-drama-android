@@ -24,8 +24,8 @@ final class PlaybackV5Signer {
     private static final String PROCESS_NONCE = base64Url(randomBytes(18));
 
     private static final String[] QUERY_KEYS = {
-            "aid", "app_name", "version_code", "version_name", "channel",
-            "device_platform", "device_type", "os_version", "update_version_code",
+            "aid", "app_name", "version_code", "version_name", "manifest_version_code",
+            "channel", "device_platform", "device_type", "os_version", "update_version_code",
             "iid", "cdid", "device_id", "_rticket"
     };
 
@@ -43,8 +43,8 @@ final class PlaybackV5Signer {
     }
 
     static final String[] VIDEO_TAB_KEYS = {
-            "aid", "app_name", "version_code", "version_name", "channel",
-            "device_platform", "device_type", "os_version", "update_version_code",
+            "aid", "app_name", "version_code", "version_name", "manifest_version_code",
+            "channel", "device_platform", "device_type", "os_version", "update_version_code",
             "iid", "cdid", "device_id", "video_id", "video_id_type", "device_level",
             "need_all_video_definition", "need_mp4_align", "use_os_player",
             "video_platform", "source", "from_video_id", "_rticket"
@@ -265,7 +265,7 @@ final class PlaybackV5Signer {
         p.blob(15, counters.bytes());
         p.sint(17, ts);
         p.text(20, "none");
-        p.sint(21, 377);
+        p.sint(21, 369);
         p.blob(23, env.bytes());
         p.text(24, "{\"cmr\":16777216,\"cmr2\":16777216,\"un_h\":11,\"vpn\":0,"
                 + "\"kd\":0,\"dyn\":\"\",\"do\":1,\"tk\":true}");

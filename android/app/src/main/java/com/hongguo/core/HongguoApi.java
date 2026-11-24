@@ -273,6 +273,7 @@ public final class HongguoApi {
         values.put("app_name", "novelread");
         values.put("version_code", "74332");
         values.put("version_name", "7.4.3.32");
+        values.put("manifest_version_code", "74332");
         values.put("channel", "vivo_8662_64");
         values.put("device_platform", "android");
         values.put("device_type", "PGT-AN10");
@@ -333,6 +334,7 @@ public final class HongguoApi {
         values.put("app_name", "novelread");
         values.put("version_code", "74332");
         values.put("version_name", "7.4.3.32");
+        values.put("manifest_version_code", "74332");
         values.put("channel", "vivo_8662_64");
         values.put("device_platform", "android");
         values.put("device_type", "PGT-AN10");
