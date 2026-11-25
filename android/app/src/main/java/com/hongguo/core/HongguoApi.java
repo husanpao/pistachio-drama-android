@@ -240,10 +240,17 @@ public final class HongguoApi {
     public List<TrackInfo> play(String seriesId, String vid) throws Exception {
         Exception v5Error = null;
         try {
+            List<TrackInfo> tracks = playOfficialVideoTab(vid);
+            if (!tracks.isEmpty()) return tracks;
+        } catch (Exception officialError) {
+            v5Error = officialError;
+        }
+        try {
             List<TrackInfo> tracks = playVideoTab(vid);
             if (!tracks.isEmpty()) return tracks;
         } catch (Exception tabError) {
-            v5Error = tabError;
+            if (v5Error == null) v5Error = tabError;
+            else v5Error.addSuppressed(tabError);
         }
         for (String endpoint : new String[]{PLAYBACK_V5_PRIMARY, PLAYBACK_V5_ALTERNATE}) {
             try {
@@ -320,6 +327,90 @@ public final class HongguoApi {
                 + ": " + payload.optString("message"));
         List<TrackInfo> tracks = parsePlayback(payload, vid);
         if (tracks.isEmpty()) throw new IllegalStateException("v5 播放响应没有可用清晰度");
+        return tracks;
+    }
+
+    private List<TrackInfo> playOfficialVideoTab(String vid) throws Exception {
+        ensureRegistered();
+        if (cdid == null || cdid.isEmpty()) {
+            registered = false;
+            ensureRegistered();
+        }
+        Map<String, String> values = new LinkedHashMap<>();
+        values.put("device_platform", "android");
+        values.put("os", "android");
+        values.put("ssmix", "a");
+        values.put("cdid", cdid);
+        values.put("channel", "vivo_8662_64");
+        values.put("aid", "8662");
+        values.put("app_name", "novelread");
+        values.put("version_code", "74332");
+        values.put("version_name", "7.4.3.32");
+        values.put("manifest_version_code", "74332");
+        values.put("update_version_code", "74332");
+        values.put("resolution", "1920*1080");
+        values.put("dpi", "280");
+        values.put("device_type", "PGT-AN10");
+        values.put("device_brand", "HONOR");
+        values.put("language", "zh");
+        values.put("os_api", "31");
+        values.put("os_version", "12");
+        values.put("ac", "wifi");
+        values.put("host_abi", "arm64-v8a");
+        values.put("dragon_device_type", "phone");
+        values.put("pv_player", "74332");
+        values.put("compliance_status", "0");
+        values.put("need_personal_recommend", "1");
+        values.put("player_so_load", "1");
+        values.put("is_android_pad_screen", "0");
+        values.put("rom_version", "V417IR+release-keys");
+        values.put("iid", installId);
+        values.put("device_id", deviceId);
+        values.put("video_id", vid);
+        values.put("video_id_type", "0");
+        values.put("device_level", "1");
+        values.put("need_all_video_definition", "1");
+        values.put("need_mp4_align", "0");
+        values.put("use_os_player", "0");
+        values.put("video_platform", "1024");
+        values.put("source", "0");
+        values.put("from_video_id", "");
+
+        long stamp = System.currentTimeMillis();
+        PlaybackV5Signer.Result signed =
+                PlaybackV5Signer.signOfficial(values, new byte[0], stamp);
+        Map<String, String> headers = new LinkedHashMap<>(signed.headers);
+        headers.put("User-Agent", PLAYBACK_VIDEO_TAB_UA);
+        headers.put("Accept", "application/json");
+        Http.Reply reply = Http.get(PLAYBACK_VIDEO_TAB + "?" + signed.query, headers);
+        return parseVideoTabReply(reply, "official video_tab", vid);
+    }
+
+    private List<TrackInfo> parseVideoTabReply(Http.Reply reply, String label, String vid) throws Exception {
+        if (reply.status != 200) {
+            throw new IllegalStateException(label + " HTTP " + reply.status + ": " + trim(reply.text()));
+        }
+        if (reply.body.length == 0) throw new EmptyResponseException();
+        JSONObject payload = new JSONObject(reply.text());
+        int code = payload.optInt("code", 0);
+        if (code != 0) throw new IllegalStateException(label + " 错误 " + code
+                + ": " + payload.optString("message"));
+        JSONObject data = payload.optJSONObject("data");
+        if (data == null) throw new IllegalStateException(label + " 缺少 data");
+        JSONObject rows = data.optJSONObject("video_model_data");
+        if (rows == null) rows = data;
+        JSONObject entry = rows.optJSONObject(vid);
+        Object modelValue = entry == null ? null : entry.opt("video_model");
+        if (modelValue == null) modelValue = data.opt("video_model");
+        JSONObject model = null;
+        if (modelValue instanceof JSONObject) {
+            model = (JSONObject) modelValue;
+        } else if (modelValue instanceof String && ((String) modelValue).trim().startsWith("{")) {
+            model = new JSONObject((String) modelValue);
+        }
+        if (model == null) throw new IllegalStateException(label + " 缺少 video_model");
+        List<TrackInfo> tracks = parseTracks(model);
+        if (tracks.isEmpty()) throw new IllegalStateException(label + " 没有可用清晰度");
         return tracks;
     }
 

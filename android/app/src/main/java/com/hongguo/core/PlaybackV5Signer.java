@@ -22,6 +22,23 @@ final class PlaybackV5Signer {
     private static final String LICENSE = "646637794";
     private static final long PROCESS_STARTED = System.currentTimeMillis();
     private static final String PROCESS_NONCE = base64Url(randomBytes(18));
+    private static final byte[] OFFICIAL_FLAGS = hex("4480000000000000");
+
+    static final class Process {
+        final String nonce;
+        final long started;
+        final long now;
+        final long launch;
+        final long pid;
+
+        Process(String nonce, long started, long now, long launch, long pid) {
+            this.nonce = nonce;
+            this.started = started;
+            this.now = now;
+            this.launch = launch;
+            this.pid = pid;
+        }
+    }
 
     private static final String[] QUERY_KEYS = {
             "aid", "app_name", "version_code", "version_name", "manifest_version_code",
@@ -55,7 +72,7 @@ final class PlaybackV5Signer {
     }
 
     static Result signKeys(Map<String, String> values, byte[] body, long stamp, String[] keys) {
-        Tuned tuned = tuneKeys(values, body, stamp, keys);
+        Tuned tuned = tuneKeys(values, body, stamp, keys, false);
         int[] n = new int[4];
         SecureRandom random = new SecureRandom();
         for (int i = 0; i < n.length; i++) {
@@ -64,7 +81,9 @@ final class PlaybackV5Signer {
             n[i] = le32(b, 0);
         }
         int ts = (int) (stamp / 1000L);
-        String medusa = medusa(values, ts, tuned.q, tuned.m, n, PROCESS_NONCE, PROCESS_STARTED);
+        Process process = new Process(PROCESS_NONCE, PROCESS_STARTED,
+                PROCESS_STARTED, 0, 0);
+        String medusa = medusa(values, ts, tuned.q, tuned.m, n, process, false);
         Map<String, String> headers = new LinkedHashMap<>();
         headers.put("X-Khronos", Integer.toUnsignedString(ts));
         headers.put("X-Helios", helios(ts, n[3]));
@@ -73,12 +92,41 @@ final class PlaybackV5Signer {
         return new Result(tuned.query, headers);
     }
 
+    /** Official video_tab envelope, used by the current Android source. */
+    static Result signOfficial(Map<String, String> values, byte[] body, long stamp) {
+        String[] keys = new String[values.size() + 1];
+        int at = 0;
+        for (String key : values.keySet()) keys[at++] = key;
+        keys[at] = "_rticket";
+
+        Tuned tuned = tuneKeys(values, body, stamp, keys, true);
+        int[] n = new int[4];
+        SecureRandom random = new SecureRandom();
+        for (int i = 0; i < n.length; i++) {
+            byte[] b = new byte[4];
+            random.nextBytes(b);
+            n[i] = le32(b, 0);
+        }
+        int ts = (int) (stamp / 1000L);
+        Process process = new Process(PROCESS_NONCE, PROCESS_STARTED,
+                System.currentTimeMillis(),
+                100 + random.nextInt(21),
+                10001 + random.nextInt(2000));
+        String medusa = medusa(values, ts, tuned.q, tuned.m, n, process, true);
+        Map<String, String> headers = new LinkedHashMap<>();
+        headers.put("X-Khronos", Integer.toUnsignedString(ts));
+        headers.put("X-Helios", helios(ts, n[3]));
+        headers.put("X-Medusa", medusa);
+        return new Result(tuned.query, headers);
+    }
+
     /** Deterministic hook used by the local protocol-vector check. */
     static Result signForTest(Map<String, String> values, byte[] body, long stamp,
                               String nonce, long started, int[] n) {
         Tuned tuned = tune(values, body, stamp);
         int ts = (int) (stamp / 1000L);
-        String medusa = medusa(values, ts, tuned.q, tuned.m, n, nonce, started);
+        String medusa = medusa(values, ts, tuned.q, tuned.m, n,
+                new Process(nonce, started, started, 0, 0), false);
         Map<String, String> headers = new LinkedHashMap<>();
         headers.put("X-Khronos", Integer.toUnsignedString(ts));
         headers.put("X-Helios", helios(ts, n[3]));
@@ -100,21 +148,28 @@ final class PlaybackV5Signer {
     }
 
     private static Tuned tune(Map<String, String> values, byte[] body, long stamp) {
-        return tuneKeys(values, body, stamp, QUERY_KEYS);
+        return tuneKeys(values, body, stamp, QUERY_KEYS, false);
     }
 
     private static Tuned tuneKeys(Map<String, String> values, byte[] body, long stamp, String[] keys) {
+        return tuneKeys(values, body, stamp, keys, false);
+    }
+
+    private static Tuned tuneKeys(Map<String, String> values, byte[] body, long stamp,
+                                  String[] keys, boolean official) {
         for (int offset = 0; offset < 1024; offset++) {
             StringBuilder query = new StringBuilder();
             for (String key : keys) {
                 if (query.length() > 0) query.append('&');
                 String value = "_rticket".equals(key)
                         ? Long.toString(stamp + offset) : values.get(key);
-                query.append(key).append('=').append(percentEncode(value == null ? "" : value));
+                query.append(key).append('=')
+                        .append(percentEncode(value == null ? "" : value, official));
             }
             String raw = query.toString();
             byte[] q = sm3(raw.getBytes(StandardCharsets.UTF_8));
-            byte[] m = body != null && body.length > 0 ? md5(body) : new byte[16];
+            byte[] m = official ? md5(body == null ? new byte[0] : body)
+                    : (body != null && body.length > 0 ? md5(body) : new byte[16]);
             int iv = passportIV(le32((int) (stamp / 1000L)),
                     passportIV(m, passportIV(q, 0x20230928)));
             if ((iv & 15) == 12) return new Tuned(raw, q, m);
@@ -123,14 +178,17 @@ final class PlaybackV5Signer {
     }
 
     private static String medusa(Map<String, String> values, int ts, byte[] q, byte[] m, int[] n,
-                                 String processNonce, long processStarted) {
+                                 Process process, boolean official) {
         byte[] hash = f13(q, m, ts);
-        byte[] message = proto(values, ts, n[0], q, hash, processNonce, processStarted);
+        byte[] message = official
+                ? officialProto(values, ts, n[0], q, hash, process)
+                : proto(values, ts, n[0], q, hash, process.nonce, process.started);
         byte[] key = sm3(concat(KEY, le32(n[1]), KEY));
         int high = (n[1] >>> 16) & 255;
         int seedValue = ~(((high << 11) | (n[1] >>> 24)) ^ (high >>> 5) ^ high);
         byte[] seed = le32(seedValue);
-        byte[] p = reverse(concat(new byte[8], xmxor(message, key)));
+        byte[] flags = official ? OFFICIAL_FLAGS : new byte[8];
+        byte[] p = reverse(concat(flags, xmxor(message, key)));
         for (int i = 0; i < p.length; i++) p[i] ^= seed[(~i) & 3];
         int check = 0x18000001 | ((q[0] & 63) << 14) | ((hash[0] & 63) << 8);
         byte[] n1 = le32(n[1]);
@@ -272,6 +330,114 @@ final class PlaybackV5Signer {
         return p.bytes();
     }
 
+    /** Deterministic official-envelope hook used by local protocol-vector tests. */
+    static Result signOfficialForTest(Map<String, String> values, byte[] body, long stamp,
+                                      Process process, int[] n) {
+        String[] keys = new String[values.size() + 1];
+        int at = 0;
+        for (String key : values.keySet()) keys[at++] = key;
+        keys[at] = "_rticket";
+        Tuned tuned = tuneKeys(values, body, stamp, keys, true);
+        int ts = (int) (stamp / 1000L);
+        String medusa = medusa(values, ts, tuned.q, tuned.m, n, process, true);
+        Map<String, String> headers = new LinkedHashMap<>();
+        headers.put("X-Khronos", Integer.toUnsignedString(ts));
+        headers.put("X-Helios", helios(ts, n[3]));
+        headers.put("X-Medusa", medusa);
+        return new Result(tuned.query, headers);
+    }
+
+    private static byte[] officialProto(Map<String, String> values, int ts, int nonce,
+                                        byte[] q, byte[] hash, Process process) {
+        String token = process.nonce == null ? "" : process.nonce;
+        if (token.length() != 25 || !token.startsWith("A")) {
+            token = ("A" + token + "AAAAAAAAAAAAAAAAAAAAAAAA").substring(0, 25);
+        }
+        String brand = value(values, "device_brand");
+        if (brand.isEmpty()) brand = "HONOR";
+        String type = value(values, "device_type");
+
+        Proto device = new Proto();
+        device.sint(1, 1);
+        device.sint(2, 2);
+        device.text(3, "8662");
+        device.text(4, value(values, "device_id"));
+        device.text(5, token);
+        device.text(6, "!noperm!");
+        device.sint(7, -888888);
+        device.sint(8, -888888);
+        device.sint(9, 3);
+        device.sint(10, -888888);
+        device.text(11, "!notset!");
+        device.text(12, "Asia/Shanghai,8");
+        device.text(13, "zh_CN");
+        device.sint(14, 4);
+        for (int field = 16; field <= 21; field++) device.fixed32Zero(field);
+        device.text(22, value(values, "os_version"));
+        device.sint(23, 41);
+        device.sint(24, 36);
+        device.sint(25, process.started);
+        device.sint(26, process.started);
+        device.sint(27, process.started);
+        device.sint(28, process.now);
+        device.sint(29, -1);
+        device.text(30, type);
+        device.text(31, brand);
+        device.text(32, type);
+        device.text(33, type);
+        device.text(34, brand);
+        device.text(35, brand);
+        device.text(36, brand);
+        device.sint(38, 31);
+
+        Proto sub = new Proto();
+        sub.sint(1, ts);
+        sub.sint(2, -2);
+        sub.sint(4, 200);
+
+        Proto env = new Proto();
+        env.sint(1, process.launch);
+        env.sint(2, 247235599);
+        env.sint(3, 247235596);
+        env.sint(5, 7);
+        env.text(6, "v04.10.03.04-bugfix");
+        env.sint(7, process.pid);
+        env.text(8, value(values, "channel"));
+        env.blob(12, device.bytes());
+        env.blob(13, sub.bytes());
+        env.text(14, value(values, "version_name"));
+
+        Proto counters = new Proto();
+        counters.sint(1, 305);
+        counters.sint(2, 4);
+        counters.sint(3, 694367);
+        counters.sint(5, 1621072674);
+
+        Proto p = new Proto();
+        p.blob(1, MAGIC);
+        p.sint(2, 5);
+        p.sint(3, Integer.toUnsignedLong(nonce));
+        p.text(4, "8662");
+        p.text(5, value(values, "device_id"));
+        p.text(6, LICENSE);
+        p.text(7, value(values, "version_name"));
+        p.text(8, "v04.10.03-ml-android");
+        p.sint(9, 0x040a0300);
+        p.blob(10, OFFICIAL_FLAGS);
+        p.sint(12, ts);
+        p.blob(13, hash);
+        p.blob(14, java.util.Arrays.copyOfRange(q, 0, 6));
+        p.blob(15, counters.bytes());
+        p.text(16, token);
+        p.sint(17, ts);
+        p.text(20, "none");
+        p.sint(21, 312);
+        p.blob(23, env.bytes());
+        p.text(24, "{\"cmr\":16777216,\"cmr2\":16777216,\"un_h\":11,\"vpn\":0,"
+                + "\"kd\":0,\"dyn\":\"\",\"do\":1,\"tk\":true}");
+        return p.bytes();
+    }
+
     private static final class Proto {
         private final ByteArrayOutputStream out = new ByteArrayOutputStream();
 
@@ -289,6 +455,14 @@ final class PlaybackV5Signer {
 
         void text(int field, String value) {
             blob(field, (value == null ? "" : value).getBytes(StandardCharsets.UTF_8));
+        }
+
+        void fixed32Zero(int field) {
+            varint(field * 8 + 5);
+            out.write(0);
+            out.write(0);
+            out.write(0);
+            out.write(0);
         }
 
         private void varint(long value) {
@@ -555,13 +729,17 @@ final class PlaybackV5Signer {
     }
 
     private static String percentEncode(String text) {
+        return percentEncode(text, false);
+    }
+
+    private static String percentEncode(String text, boolean official) {
         byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
         StringBuilder out = new StringBuilder();
         for (byte value : bytes) {
             int b = value & 255;
             if ((b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
                     || (b >= '0' && b <= '9') || b == '-' || b == '_'
-                    || b == '.' || b == '~') {
+                    || b == '.' || b == '~' || (official && b == '*')) {
                 out.append((char) b);
             } else {
                 out.append('%').append(Character.toUpperCase(Character.forDigit(b >>> 4, 16)))

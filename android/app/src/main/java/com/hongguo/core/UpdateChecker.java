@@ -2,22 +2,33 @@ package com.hongguo.core;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
+import android.provider.Settings;
 import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Checks for updates without relying on a reachable github.com.
- *
- * <p>A small update.json on the main branch is mirrored through jsDelivr and
- * several GitHub proxies. GitHub Releases / Tags remain a fallback.</p>
+ * Checks for updates through mirrored update.json, then GitHub Releases/Tags.
+ * New versions are downloaded in-app and handed to the system package installer.
  */
 public final class UpdateChecker {
     private static final String OWNER_REPO = "husanpao/pistachio-drama-android";
@@ -48,12 +59,14 @@ public final class UpdateChecker {
     private static final class Latest {
         final String version;
         final String pageUrl;
-        final String downloadUrl;
+        final String sha256;
+        final List<String> downloadUrls;
 
-        Latest(String version, String pageUrl, String downloadUrl) {
+        Latest(String version, String pageUrl, String sha256, List<String> downloadUrls) {
             this.version = version;
             this.pageUrl = pageUrl;
-            this.downloadUrl = downloadUrl;
+            this.sha256 = sha256;
+            this.downloadUrls = downloadUrls;
         }
     }
 
@@ -73,7 +86,6 @@ public final class UpdateChecker {
             headers.put("Cache-Control", "no-cache");
             headers.put("User-Agent", "pistachio-drama-android");
 
-            // 1. Mirrored update.json: works when github.com is blocked.
             for (String url : MANIFEST_MIRRORS) {
                 try {
                     Http.Reply reply = Http.get(url, headers, 6000, 8000);
@@ -82,15 +94,15 @@ public final class UpdateChecker {
                     String version = json.optString("version", "").trim();
                     if (version.isEmpty()) continue;
                     String page = json.optString("release_url", RELEASES_PAGE);
-                    String download = mirroredDownload(json);
                     successful = true;
-                    latest = new Latest(version, page, download);
+                    latest = new Latest(version, page,
+                            json.optString("sha256", "").trim(),
+                            mirroredDownloads(json));
                     break;
                 } catch (Exception ignored) {
                 }
             }
 
-            // 2. GitHub Release API, then Tags.
             if (latest == null) {
                 try {
                     Http.Reply release = Http.get(RELEASES_API, headers);
@@ -103,7 +115,7 @@ public final class UpdateChecker {
                                 successful = true;
                                 latest = new Latest(tag,
                                         json.optString("html_url", RELEASES_PAGE),
-                                        releaseDownload(json));
+                                        releaseSha(json), releaseDownloads(json));
                             }
                         }
                     }
@@ -125,39 +137,64 @@ public final class UpdateChecker {
         });
     }
 
-    private static String mirroredDownload(JSONObject json) {
+    private static List<String> mirroredDownloads(JSONObject json) {
+        List<String> urls = new ArrayList<>();
         String tag = json.optString("tag", json.optString("tag_name", "")).trim();
         String apkName = json.optString("apk_name", "").trim();
         String apkPath = json.optString("apk_path", "").trim();
 
-        // Prefer a proxy for the repository copy. jsDelivr is a secondary
-        // mirror because it is not reachable on every mainland network.
         if (!apkPath.isEmpty()) {
-            String raw = "https://raw.githubusercontent.com/" + OWNER_REPO
-                    + "/main/" + apkPath;
-            return "https://ghproxy.net/" + raw;
+            String raw = "https://raw.githubusercontent.com/" + OWNER_REPO + "/main/" + apkPath;
+            urls.add("https://ghproxy.net/" + raw);
+            urls.add("https://gh-proxy.com/" + raw);
+            urls.add("https://ghfast.top/" + raw);
+            urls.add("https://cdn.jsdelivr.net/gh/" + OWNER_REPO + "@main/" + apkPath);
         }
         if (!tag.isEmpty() && !apkName.isEmpty()) {
             String github = "https://github.com/" + OWNER_REPO
                     + "/releases/download/" + tag + "/" + apkName;
-            return "https://ghproxy.net/" + github;
+            urls.add("https://ghproxy.net/" + github);
+            urls.add("https://gh-proxy.com/" + github);
+            urls.add(github);
         }
-        return json.optString("release_url", RELEASES_PAGE);
+        if (urls.isEmpty()) urls.add(json.optString("release_url", RELEASES_PAGE));
+        return urls;
     }
 
-    private static String releaseDownload(JSONObject release) {
+    private static String releaseSha(JSONObject release) {
         JSONArray assets = release.optJSONArray("assets");
         if (assets != null) {
             for (int i = 0; i < assets.length(); i++) {
                 JSONObject asset = assets.optJSONObject(i);
                 if (asset == null) continue;
                 String name = asset.optString("name", "");
-                if (!name.toLowerCase(java.util.Locale.US).endsWith(".apk")) continue;
-                String url = asset.optString("browser_download_url", "");
-                if (!url.isEmpty()) return "https://ghproxy.net/" + url;
+                if (!name.toLowerCase(Locale.US).endsWith(".apk")) continue;
+                String digest = asset.optString("digest", "");
+                if (digest.startsWith("sha256:")) return digest.substring(7);
             }
         }
-        return release.optString("html_url", RELEASES_PAGE);
+        return "";
+    }
+
+    private static List<String> releaseDownloads(JSONObject release) {
+        List<String> urls = new ArrayList<>();
+        JSONArray assets = release.optJSONArray("assets");
+        if (assets != null) {
+            for (int i = 0; i < assets.length(); i++) {
+                JSONObject asset = assets.optJSONObject(i);
+                if (asset == null) continue;
+                String name = asset.optString("name", "");
+                if (!name.toLowerCase(Locale.US).endsWith(".apk")) continue;
+                String url = asset.optString("browser_download_url", "");
+                if (!url.isEmpty()) {
+                    urls.add("https://ghproxy.net/" + url);
+                    urls.add("https://gh-proxy.com/" + url);
+                    urls.add(url);
+                }
+            }
+        }
+        if (urls.isEmpty()) urls.add(release.optString("html_url", RELEASES_PAGE));
+        return urls;
     }
 
     private static Latest newestTag(JSONArray tags) {
@@ -168,7 +205,9 @@ public final class UpdateChecker {
             String name = tag.optString("name", "");
             if (name.isEmpty()) continue;
             if (best == null || compareVersion(name, best.version) > 0) {
-                best = new Latest(name, RELEASES_PAGE, RELEASES_PAGE);
+                List<String> urls = new ArrayList<>();
+                urls.add(RELEASES_PAGE);
+                best = new Latest(name, RELEASES_PAGE, "", urls);
             }
         }
         return best;
@@ -179,7 +218,7 @@ public final class UpdateChecker {
         if (context instanceof Activity) {
             Activity activity = (Activity) context;
             if (activity.isFinishing()
-                    || (android.os.Build.VERSION.SDK_INT >= 17 && activity.isDestroyed())) {
+                    || (Build.VERSION.SDK_INT >= 17 && activity.isDestroyed())) {
                 return;
             }
         }
@@ -199,17 +238,160 @@ public final class UpdateChecker {
         new AlertDialog.Builder(context)
                 .setTitle("发现新版本")
                 .setMessage("最新版本：" + latest.version + "\n当前版本：v" + current)
-                .setPositiveButton("去更新", (dialog, which) ->
-                        open(context, latest.downloadUrl == null
-                                || latest.downloadUrl.isEmpty()
-                                ? latest.pageUrl : latest.downloadUrl))
+                .setPositiveButton("立即更新", (dialog, which) -> startUpdate(context, latest))
                 .setNegativeButton("稍后", null)
                 .show();
     }
 
+    private static void startUpdate(Context context, Latest latest) {
+        if (latest.downloadUrls.isEmpty()
+                || !latest.downloadUrls.get(0).toLowerCase(Locale.US).contains(".apk")) {
+            open(context, latest.pageUrl);
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= 26
+                && !context.getPackageManager().canRequestPackageInstalls()) {
+            toast(context, "请允许安装未知应用后，再点击检查更新");
+            try {
+                Intent settings = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:" + context.getPackageName()));
+                settings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(settings);
+            } catch (Exception ignored) {
+            }
+            return;
+        }
+        if (!(context instanceof Activity)) {
+            open(context, latest.downloadUrls.get(0));
+            return;
+        }
+
+        final AtomicBoolean canceled = new AtomicBoolean(false);
+        ProgressDialog progress = new ProgressDialog(context);
+        progress.setTitle("正在下载更新");
+        progress.setMessage("准备下载 " + latest.version);
+        progress.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+        progress.setMax(100);
+        progress.setCanceledOnTouchOutside(false);
+        progress.setButton(ProgressDialog.BUTTON_NEGATIVE, "取消", (dialog, which) -> {
+            canceled.set(true);
+            dialog.dismiss();
+        });
+        progress.show();
+
+        final Context app = context.getApplicationContext();
+        App.io(() -> {
+            File dir = new File(app.getCacheDir(), "updates");
+            //noinspection ResultOfMethodCallIgnored
+            dir.mkdirs();
+            File apk = new File(dir, "update-" + safeName(latest.version) + ".apk");
+            Exception lastError = null;
+            boolean ok = false;
+            for (String url : latest.downloadUrls) {
+                if (canceled.get()) break;
+                try {
+                    download(url, apk, latest.sha256, progress, canceled);
+                    ok = true;
+                    break;
+                } catch (Exception error) {
+                    lastError = error;
+                    //noinspection ResultOfMethodCallIgnored
+                    apk.delete();
+                }
+            }
+            final boolean success = ok;
+            final Exception failure = lastError;
+            App.ui(() -> {
+                if (!canceled.get()) progress.dismiss();
+                if (success) {
+                    install(context, apk);
+                } else if (!canceled.get()) {
+                    toast(context, "更新下载失败"
+                            + (failure == null ? "" : "：" + failure.getMessage()));
+                }
+            });
+        });
+    }
+
+    private static void download(String url, File target, String expectedSha,
+                                 ProgressDialog progress, AtomicBoolean canceled) throws Exception {
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        connection.setConnectTimeout(15000);
+        connection.setReadTimeout(60000);
+        connection.setInstanceFollowRedirects(true);
+        connection.setRequestProperty("User-Agent", "pistachio-drama-android");
+        connection.setRequestProperty("Accept", "application/octet-stream");
+        try {
+            int status = connection.getResponseCode();
+            if (status != 200) throw new IllegalStateException("HTTP " + status);
+            long total = connection.getContentLengthLong();
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            try (InputStream input = connection.getInputStream();
+                 FileOutputStream output = new FileOutputStream(target)) {
+                byte[] buffer = new byte[65536];
+                long received = 0;
+                int count;
+                int lastPercent = -1;
+                while ((count = input.read(buffer)) >= 0) {
+                    if (canceled.get()) throw new IllegalStateException("已取消");
+                    output.write(buffer, 0, count);
+                    digest.update(buffer, 0, count);
+                    received += count;
+                    if (total > 0) {
+                        int percent = (int) Math.min(100, received * 100 / total);
+                        if (percent != lastPercent) {
+                            lastPercent = percent;
+                            final int value = percent;
+                            App.ui(() -> {
+                                if (!canceled.get()) progress.setProgress(value);
+                            });
+                        }
+                    }
+                }
+            }
+            if (target.length() < 1_000_000) throw new IllegalStateException("文件过小");
+            if (expectedSha != null && !expectedSha.isEmpty()) {
+                String actual = hex(digest.digest());
+                if (!actual.equalsIgnoreCase(expectedSha)) {
+                    throw new IllegalStateException("校验失败");
+                }
+            }
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    private static void install(Context context, File apk) {
+        try {
+            Uri uri = ApkProvider.uriFor(context.getPackageName(), apk.getName());
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(uri, "application/vnd.android.package-archive");
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    | Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(intent);
+        } catch (Exception error) {
+            toast(context, "无法启动安装程序，请在设置中允许安装未知应用");
+        }
+    }
+
+    private static String safeName(String version) {
+        return version.replaceAll("[^0-9A-Za-z._-]", "_");
+    }
+
+    private static String hex(byte[] data) {
+        char[] digits = "0123456789abcdef".toCharArray();
+        char[] out = new char[data.length * 2];
+        for (int i = 0; i < data.length; i++) {
+            out[i * 2] = digits[(data[i] >>> 4) & 15];
+            out[i * 2 + 1] = digits[data[i] & 15];
+        }
+        return new String(out);
+    }
+
     private static void open(Context context, String url) {
         try {
-            context.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+            context.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         } catch (Exception error) {
             toast(context, "无法打开更新页面");
         }

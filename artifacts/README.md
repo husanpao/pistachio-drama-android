@@ -4,7 +4,7 @@
 
 | 文件 | 说明 |
 |---|---|
-| `app-release.apk` | v0.5.8 / versionCode 22，已签名，仅供侧载验证 |
+| `app-release.apk` | v0.5.10 / versionCode 24，已签名，仅供侧载验证 |
 | `screenshots/app-icon-512.png` | 应用图标 512 × 512 |
 | `screenshots/app-icon-round-512.png` | 圆形图标 512 × 512 |
 | `screenshots/splash.webp` | 开屏页 |
