@@ -10,8 +10,8 @@ android {
         applicationId = "com.hongguo.nativeapp"
         minSdk = 26
         targetSdk = 34
-        versionCode = 24
-        versionName = "0.5.10"
+        versionCode = 25
+        versionName = "0.5.11"
     }
 
     buildTypes {

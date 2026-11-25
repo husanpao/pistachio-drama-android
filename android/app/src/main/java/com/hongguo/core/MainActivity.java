@@ -103,6 +103,7 @@ public class MainActivity extends Activity implements HomeView.TabHost {
     @Override
     protected void onResume() {
         super.onResume();
+        UpdateChecker.resumePending(this);
         if (current == 4 && tabs[4] instanceof MineView) {
             ((MineView) tabs[4]).onShown();
         }

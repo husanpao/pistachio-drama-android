@@ -41,6 +41,7 @@ public final class UpdateChecker {
     private static final String RELEASES_PAGE =
             "https://github.com/" + OWNER_REPO + "/releases";
     private static final long AUTO_CHECK_INTERVAL_MS = 12L * 60 * 60 * 1000;
+    private static Latest pendingUpdate;
 
     private static final String[] MANIFEST_MIRRORS = {
             "https://ghproxy.net/" + RAW_MANIFEST,
@@ -243,6 +244,18 @@ public final class UpdateChecker {
                 .show();
     }
 
+    public static void resumePending(Context context) {
+        if (context == null || pendingUpdate == null) return;
+        if (!(context instanceof Activity)) return;
+        if (Build.VERSION.SDK_INT >= 26
+                && !context.getPackageManager().canRequestPackageInstalls()) {
+            return;
+        }
+        Latest latest = pendingUpdate;
+        pendingUpdate = null;
+        startUpdate(context, latest);
+    }
+
     private static void startUpdate(Context context, Latest latest) {
         if (latest.downloadUrls.isEmpty()
                 || !latest.downloadUrls.get(0).toLowerCase(Locale.US).contains(".apk")) {
@@ -251,7 +264,8 @@ public final class UpdateChecker {
         }
         if (Build.VERSION.SDK_INT >= 26
                 && !context.getPackageManager().canRequestPackageInstalls()) {
-            toast(context, "请允许安装未知应用后，再点击检查更新");
+            pendingUpdate = latest;
+            toast(context, "请允许安装未知应用后返回，应用会自动继续");
             try {
                 Intent settings = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                         Uri.parse("package:" + context.getPackageName()));
