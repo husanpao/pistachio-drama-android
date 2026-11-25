@@ -1,10 +1,10 @@
 {
-  "version": "0.5.10",
+  "version": "0.5.11",
   "tag": "",
   "apk_path": "artifacts/app-release.apk",
-  "apk_name": "pistachio-drama-android-v0.5.10.apk",
-  "sha256": "c0857535f311fe08aef667f464aecd6f00f276d501aa6fb8be10947e0dbe4ce2",
+  "apk_name": "pistachio-drama-android-v0.5.11.apk",
+  "sha256": "d50280b571889b9f004d227ba75ac3091f922a6137853307cf4fe320928a44ce",
   "size": 4405818,
-  "release_url": "https://github.com/husanpao/pistachio-drama-android/releases/tag/v0.5.10",
-  "notes": "Release v0.5.10"
+  "release_url": "https://github.com/husanpao/pistachio-drama-android/releases/tag/v0.5.11",
+  "notes": "Release v0.5.11"
 }
